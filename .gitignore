@@ -1,2 +1,4 @@
 Readme.md
 .env
+service/club/*.toml*
+service/club/*.env
