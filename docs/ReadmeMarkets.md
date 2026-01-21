@@ -20,3 +20,16 @@ Rules
 - Allowed listing status values: ACTIVE, SOLD, EXPIRED.
 - No foreign keys to other services' databases.
 - No deletes for listings/bids; only updates and inserts.
+
+CreateListing Flow (market-svc)
+- Validate request fields (ids, prices, expiry).
+- Check for an existing ACTIVE listing for the same card in market DB.
+- Call club-svc LockCard; lock is the ownership/availability check.
+- Insert listing with status ACTIVE in market DB.
+- On DB failure, release the card lock in club-svc.
+
+Osservabilita
+- Log strutturati nel server per errori e successi del flusso CreateListing.
+
+Configurazione
+- Le variabili vengono caricate da `.env` (sovrascrivono quelle gia' presenti) usando `GO_DOTENV_PATH` se valorizzato.
