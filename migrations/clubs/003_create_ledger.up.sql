@@ -9,7 +9,7 @@ CREATE TABLE ledger (
     CONSTRAINT fk_ledger_club
         FOREIGN KEY (club_id)
         REFERENCES clubs(id)
-        ON DELETE CASCADE
+        ON DELETE RESTRICT 
 );
 
 CREATE INDEX idx_ledger_club_created_at

@@ -11,9 +11,9 @@ CREATE TABLE credit_holds (
     CONSTRAINT fk_hold_club
         FOREIGN KEY (club_id)
         REFERENCES clubs(id)
-        ON DELETE CASCADE
+        ON DELETE RESTRICT  
 );
 
-CREATE UNIQUE INDEX one_active_hold_per_club
+CREATE INDEX idx_active_holds_per_club
     ON credit_holds (club_id)
     WHERE released_at IS NULL;
