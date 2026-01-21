@@ -1,6 +1,6 @@
 module UltimateTeamX
 
-go 1.25
+go 1.25.6
 
 require (
 	google.golang.org/grpc v1.78.0

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: utx
+          POSTGRES_PASSWORD: utx
+          POSTGRES_DB: utx_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.6"
+
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "latest"
+
+      - name: Buf lint
+        run: buf lint
+
+      - name: Buf generate
+        run: buf generate
+
+      - name: Go mod download
+        run: go mod download
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        env:
+          DATABASE_URL: postgres://utx:utx@localhost:5432/utx_test?sslmode=disable
+          REDIS_ADDR: localhost:6379
+        run: go test ./...
