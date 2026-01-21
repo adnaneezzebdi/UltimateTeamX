@@ -1,4 +1,4 @@
-### Identity Service – Database Schema
+# Identity Service – Database Schema
 
 ## Purpose
 
@@ -72,21 +72,21 @@ Example:
 
 `001_create_users.sql`
 
-# Rules:
+### Rules:
 - Migrations are applied manually or via tooling
 - No schema changes at application runtime
 - Each migration must be atomic and ordered
 
-# Security Rules
+### Security Rules
 - Passwords are always hashed (bcrypt or argon2)
 - Plaintext passwords are strictly forbidden
 - No refresh tokens stored in DB
 - No authorization data stored here
 - Only identity data is allowed
 
-# How to execute in terminal?
+### How to execute in terminal?
 1. Create a file .env in service/identity/.env as .example.env
 2. In terminal export the environmental variables: 
-      export $(cat service/identity/.env | xargs)
+      `export $(cat service/identity/.env | xargs)`
 3. Execute the migration:
-      PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f migrations/identity/001_create_users.sql
+      `PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f migrations/identity/001_create_users.sql`
