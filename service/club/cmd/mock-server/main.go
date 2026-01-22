@@ -16,6 +16,12 @@ type mockClubServer struct {
 	logger *slog.Logger
 }
 
+// Mock minimale per simulare il club-svc in locale.
+func (s *mockClubServer) GetMyClub(_ context.Context, _ *clubv1.GetMyClubRequest) (*clubv1.GetMyClubResponse, error) {
+	s.logger.Info("mock get my club")
+	return &clubv1.GetMyClubResponse{ClubId: "00000000-0000-0000-0000-000000000001", Credits: 0, Cards: nil}, nil
+}
+
 // LockCard simula un lock carta e genera un lock_id fittizio.
 func (s *mockClubServer) LockCard(_ context.Context, req *clubv1.LockCardRequest) (*clubv1.LockCardResponse, error) {
 	lockID := uuid.NewString()
@@ -43,7 +49,7 @@ func (s *mockClubServer) ReleaseCreditHold(_ context.Context, req *clubv1.Releas
 }
 
 func main() {
-	// Mock gRPC server per test/dev: sostituire con il vero club-svc in ambienti reali.
+	// Avvio server gRPC mock su GRPC_ADDR (default :50052).
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	addr := os.Getenv("GRPC_ADDR")
 	if addr == "" {

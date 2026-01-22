@@ -7,17 +7,20 @@ import (
 	"strings"
 	"time"
 
+	"UltimateTeamX/pkg/grpcx"
 	clubv1 "UltimateTeamX/proto/club/v1"
 	marketv1 "UltimateTeamX/proto/market/v1"
 	"UltimateTeamX/service/market/internal/lock"
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
 const listingStatusActive = "ACTIVE"
 
 // Server implementa l'interfaccia gRPC MarketService.
+// Integra il club-svc per risolvere club_id e gestire lock/hold.
 type Server struct {
 	marketv1.UnimplementedMarketServiceServer
 	logger *slog.Logger
@@ -49,7 +52,7 @@ func (s *Server) CreateListing(ctx context.Context, req *marketv1.CreateListingR
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// Evita più listing attivi per la stessa carta.
+	// 1) Evita piu' listing attivi per la stessa carta.
 	existingID, err := s.repo.ActiveListingByCard(ctx, req.UserCardId)
 	if err != nil {
 		s.logger.Error("errore verifica listing attivo", "error", err)
@@ -59,7 +62,14 @@ func (s *Server) CreateListing(ctx context.Context, req *marketv1.CreateListingR
 		return nil, status.Error(codes.AlreadyExists, "active listing already exists for card")
 	}
 
+	// 2) Risolve seller_club_id via club-svc.
+	sellerClubID, err := s.clubIDForUser(ctx, req.SellerUserId)
+	if err != nil {
+		return nil, err
+	}
+
 	// Il lock in club-svc vale come verifica di ownership/disponibilità.
+	// 3) Lock carta in club-svc (ownership/disponibilita').
 	lockResp, err := s.club.LockCard(ctx, &clubv1.LockCardRequest{
 		UserId:     req.SellerUserId,
 		UserCardId: req.UserCardId,
@@ -74,16 +84,16 @@ func (s *Server) CreateListing(ctx context.Context, req *marketv1.CreateListingR
 		return nil, status.Error(codes.Internal, "failed to lock card")
 	}
 
+	// 4) Inserisce il listing nel DB market.
 	listingID := uuid.NewString()
 	expiresAt := time.Unix(req.ExpiresAtUnix, 0)
 	listing := Listing{
-		ID: listingID,
-		// TODO: risolvere seller_club_id via club-svc (user_id -> club_id).
-		SellerClubID:  req.SellerUserId,
-		UserCardID:    req.UserCardId,
-		StartPrice:    req.StartPrice,
-		BuyNowPrice:   optionalPrice(req.BuyNowPrice),
-		Status:        listingStatusActive,
+		ID:           listingID,
+		SellerClubID: sellerClubID,
+		UserCardID:   req.UserCardId,
+		StartPrice:   req.StartPrice,
+		BuyNowPrice:  optionalPrice(req.BuyNowPrice),
+		Status:       listingStatusActive,
 		ExpiresAtUnix: expiresAt.Unix(),
 	}
 
@@ -99,7 +109,6 @@ func (s *Server) CreateListing(ctx context.Context, req *marketv1.CreateListingR
 	return &marketv1.CreateListingResponse{ListingId: listingID}, nil
 }
 
-// PlaceBid gestisce un'offerta concorrente in modo safe usando un lock Redis.
 func (s *Server) PlaceBid(ctx context.Context, req *marketv1.PlaceBidRequest) (*marketv1.PlaceBidResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request is required")
@@ -123,6 +132,13 @@ func (s *Server) PlaceBid(ctx context.Context, req *marketv1.PlaceBidRequest) (*
 		return nil, status.Error(codes.Internal, "redis lock not configured")
 	}
 
+	// 1) Risolve bidder_club_id via club-svc.
+	bidderClubID, err := s.clubIDForUser(ctx, req.BidderUserId)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2) Acquisisce lock Redis per serializzare i bid.
 	lockKey := "lock:listing:" + req.ListingId
 	token, ok, err := s.locker.Acquire(ctx, lockKey)
 	if err != nil {
@@ -138,6 +154,7 @@ func (s *Server) PlaceBid(ctx context.Context, req *marketv1.PlaceBidRequest) (*
 		}
 	}()
 
+	// 3) Carica listing e valida lo stato.
 	listing, err := s.repo.GetListing(ctx, req.ListingId)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -161,7 +178,7 @@ func (s *Server) PlaceBid(ctx context.Context, req *marketv1.PlaceBidRequest) (*
 		return nil, status.Error(codes.FailedPrecondition, "bid must be >= start_price")
 	}
 
-	// TODO: risolvere bidder_club_id via club-svc (user_id -> club_id).
+	// 4) Crea hold crediti nel club-svc.
 	holdResp, err := s.club.CreateCreditHold(ctx, &clubv1.CreateCreditHoldRequest{
 		UserId: req.BidderUserId,
 		Amount: req.BidAmount,
@@ -176,13 +193,15 @@ func (s *Server) PlaceBid(ctx context.Context, req *marketv1.PlaceBidRequest) (*
 		return nil, status.Error(codes.Internal, "failed to create credit hold")
 	}
 
-	bidID, err := s.repo.InsertBidAndUpdateListing(ctx, listing.ID, req.BidderUserId, holdResp.HoldId, req.BidAmount)
+	// 5) Inserisce bid e aggiorna best_bid in DB.
+	bidID, err := s.repo.InsertBidAndUpdateListing(ctx, listing.ID, bidderClubID, holdResp.HoldId, req.BidAmount)
 	if err != nil {
 		s.logger.Error("errore inserimento bid", "error", err, "listing_id", req.ListingId)
 		_, _ = s.club.ReleaseCreditHold(ctx, &clubv1.ReleaseCreditHoldRequest{HoldId: holdResp.HoldId})
 		return nil, status.Error(codes.Internal, "failed to place bid")
 	}
 
+	// 6) Rilascia l'hold precedente (se presente).
 	if listing.BestBid != nil && listing.BestBidderClubID != nil {
 		holdID, err := s.repo.GetHoldIDForBid(ctx, listing.ID, *listing.BestBidderClubID, *listing.BestBid)
 		if err != nil {
@@ -199,6 +218,30 @@ func (s *Server) PlaceBid(ctx context.Context, req *marketv1.PlaceBidRequest) (*
 		BestBid:          req.BidAmount,
 		BestBidderUserId: req.BidderUserId,
 	}, nil
+}
+
+// clubIDForUser chiama GetMyClub e legge club_id passando user_id via metadata gRPC.
+func (s *Server) clubIDForUser(ctx context.Context, userID string) (string, error) {
+	if s.club == nil {
+		return "", status.Error(codes.Internal, "club client not configured")
+	}
+	ctxWithUser := metadata.AppendToOutgoingContext(ctx, grpcx.UserIDMetadataKey, userID)
+	resp, err := s.club.GetMyClub(ctxWithUser, &clubv1.GetMyClubRequest{})
+	if err != nil {
+		if grpcStatus, ok := status.FromError(err); ok {
+			switch grpcStatus.Code() {
+			case codes.Unauthenticated, codes.NotFound:
+				return "", grpcStatus.Err()
+			default:
+				return "", status.Error(codes.Internal, "failed to resolve club")
+			}
+		}
+		return "", status.Error(codes.Internal, "failed to resolve club")
+	}
+	if strings.TrimSpace(resp.ClubId) == "" {
+		return "", status.Error(codes.Internal, "club_id missing")
+	}
+	return resp.ClubId, nil
 }
 
 // validateCreateListing applica le invarianti di base della request.
@@ -242,3 +285,4 @@ func isUUID(value string) bool {
 	_, err := uuid.Parse(value)
 	return err == nil
 }
+

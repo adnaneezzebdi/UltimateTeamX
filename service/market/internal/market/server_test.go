@@ -7,13 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"UltimateTeamX/pkg/grpcx"
 	clubv1 "UltimateTeamX/proto/club/v1"
 	marketv1 "UltimateTeamX/proto/market/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
+// fakeRepo simula il DB per testare la logica del server.
 type fakeRepo struct {
 	activeListingID string
 	activeErr       error
@@ -72,7 +75,12 @@ func (r *fakeRepo) GetHoldIDForBid(_ context.Context, _, _ string, _ int64) (str
 	return r.holdIDForBid, nil
 }
 
+// fakeClub simula il client gRPC di club-svc.
 type fakeClub struct {
+	getMyClubResp     *clubv1.GetMyClubResponse
+	getMyClubErr      error
+	getMyClubCalls    int
+	getMyClubUserID   string
 	lockResp          *clubv1.LockCardResponse
 	lockErr           error
 	releaseCalls      int
@@ -99,6 +107,22 @@ func (c *fakeClub) ReleaseCardLock(_ context.Context, req *clubv1.ReleaseCardLoc
 	return &clubv1.ReleaseCardLockResponse{Released: true}, nil
 }
 
+func (c *fakeClub) GetMyClub(ctx context.Context, _ *clubv1.GetMyClubRequest, _ ...grpc.CallOption) (*clubv1.GetMyClubResponse, error) {
+	c.getMyClubCalls++
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if values := md.Get(grpcx.UserIDMetadataKey); len(values) > 0 {
+			c.getMyClubUserID = values[0]
+		}
+	}
+	if c.getMyClubErr != nil {
+		return nil, c.getMyClubErr
+	}
+	if c.getMyClubResp != nil {
+		return c.getMyClubResp, nil
+	}
+	return &clubv1.GetMyClubResponse{ClubId: "club-1"}, nil
+}
+
 func (c *fakeClub) GetClub(_ context.Context, _ *clubv1.GetClubRequest, _ ...grpc.CallOption) (*clubv1.GetClubResponse, error) {
 	return nil, errors.New("not implemented")
 }
@@ -123,6 +147,7 @@ func (c *fakeClub) SettleTrade(_ context.Context, _ *clubv1.SettleTradeRequest, 
 	return nil, errors.New("not implemented")
 }
 
+// fakeLock simula un lock Redis.
 type fakeLock struct {
 	token string
 	ok    bool
@@ -137,6 +162,7 @@ func (l *fakeLock) Release(_ context.Context, _, _ string) error {
 	return nil
 }
 
+// contendedLock simula lock conteso per test concorrenti.
 type contendedLock struct {
 	token string
 	taken chan struct{}
@@ -166,6 +192,7 @@ func (l *contendedLock) Release(_ context.Context, _, _ string) error {
 	return nil
 }
 
+// oneShotLock permette un solo acquire riuscito.
 type oneShotLock struct {
 	used bool
 }
@@ -184,7 +211,7 @@ func (l *oneShotLock) Release(_ context.Context, _, _ string) error {
 
 func TestCreateListingSuccess(t *testing.T) {
 	repo := &fakeRepo{}
-	club := &fakeClub{}
+	club := &fakeClub{getMyClubResp: &clubv1.GetMyClubResponse{ClubId: "club-seller"}}
 	server := NewServer(slog.Default(), repo, club, nil)
 
 	req := &marketv1.CreateListingRequest{
@@ -208,6 +235,9 @@ func TestCreateListingSuccess(t *testing.T) {
 	if repo.createdListing.Status != listingStatusActive {
 		t.Fatalf("expected status ACTIVE, got %s", repo.createdListing.Status)
 	}
+	if repo.createdListing.SellerClubID != "club-seller" {
+		t.Fatalf("unexpected seller_club_id")
+	}
 	if repo.createdListing.UserCardID != req.UserCardId {
 		t.Fatalf("unexpected user_card_id")
 	}
@@ -216,6 +246,9 @@ func TestCreateListingSuccess(t *testing.T) {
 	}
 	if repo.createdListing.BuyNowPrice == nil || *repo.createdListing.BuyNowPrice != req.BuyNowPrice {
 		t.Fatalf("unexpected buy_now_price")
+	}
+	if club.getMyClubUserID != req.SellerUserId {
+		t.Fatalf("expected GetMyClub to use seller user_id")
 	}
 }
 
@@ -303,7 +336,10 @@ func TestPlaceBidSuccess(t *testing.T) {
 			ExpiresAtUnix: time.Now().Add(time.Hour).Unix(),
 		},
 	}
-	club := &fakeClub{holdResp: &clubv1.CreateCreditHoldResponse{HoldId: "hold-1"}}
+	club := &fakeClub{
+		getMyClubResp: &clubv1.GetMyClubResponse{ClubId: "club-bidder"},
+		holdResp:      &clubv1.CreateCreditHoldResponse{HoldId: "hold-1"},
+	}
 	locker := &fakeLock{token: "token", ok: true}
 	server := NewServer(slog.Default(), repo, club, locker)
 
@@ -319,6 +355,9 @@ func TestPlaceBidSuccess(t *testing.T) {
 	}
 	if resp.BestBid != req.BidAmount {
 		t.Fatalf("unexpected best_bid")
+	}
+	if repo.lastInsert.bidderClubID != "club-bidder" {
+		t.Fatalf("expected bidder_club_id to be used")
 	}
 	if repo.lastInsert.holdID != "hold-1" {
 		t.Fatalf("expected hold_id to be used")
@@ -357,7 +396,10 @@ func TestPlaceBidReleasesPreviousHold(t *testing.T) {
 		},
 		holdIDForBid: "hold-prev",
 	}
-	club := &fakeClub{holdResp: &clubv1.CreateCreditHoldResponse{HoldId: "hold-new"}}
+	club := &fakeClub{
+		getMyClubResp: &clubv1.GetMyClubResponse{ClubId: "club-bidder"},
+		holdResp:      &clubv1.CreateCreditHoldResponse{HoldId: "hold-new"},
+	}
 	locker := &fakeLock{token: "token", ok: true}
 	server := NewServer(slog.Default(), repo, club, locker)
 

@@ -6,13 +6,15 @@ import (
 	"github.com/google/uuid"
 )
 
-// MyClubReader espone l'accesso al club dell'utente corrente.
+// Contratti e modelli del dominio "club".
+// Espongono cosa serve al resto dell'app senza dettagli di DB/gRPC.
 type MyClubReader interface {
 	GetMyClub(ctx context.Context, userID uuid.UUID) (*MyClub, error)
 }
 
-// MyClub rappresenta il club dell'utente con i dati necessari al dominio.
+// MyClub rappresenta il club con i dati necessari al dominio.
 type MyClub struct {
+	ClubID  uuid.UUID
 	Credits int64
 	Cards   []UserCard
 }

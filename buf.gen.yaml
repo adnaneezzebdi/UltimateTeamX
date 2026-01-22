@@ -5,10 +5,10 @@ managed:
     default: UltimateTeamX/proto
 plugins:
   - plugin: buf.build/protocolbuffers/go
-    out: .
+    out: proto
     opt:
       - paths=source_relative
   - plugin: buf.build/grpc/go
-    out: .
+    out: proto
     opt:
       - paths=source_relative
