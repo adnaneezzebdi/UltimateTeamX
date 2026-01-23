@@ -53,6 +53,7 @@ func main() {
 	}
 	defer clubConn.Close()
 
+	// Redis e' usato per i lock distribuiti delle listing.
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
 		Password: cfg.RedisPassword,

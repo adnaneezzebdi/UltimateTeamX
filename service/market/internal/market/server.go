@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Stato usato per le listing attive nel market DB.
 const listingStatusActive = "ACTIVE"
 
 // Server implementa l'interfaccia gRPC MarketService.

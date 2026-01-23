@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Test suite per i flussi CreateListing e PlaceBid.
+
 type fakeRepo struct {
 	activeListingID string
 	activeErr       error

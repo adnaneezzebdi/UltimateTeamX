@@ -39,6 +39,7 @@ func getEnv(key, fallback string) string {
 }
 
 func buildDSN() string {
+	// Se mancano dati minimi, torna vuota e fallisce piu' avanti.
 	host := os.Getenv("DB_HOST")
 	port := getEnv("DB_PORT", "5432")
 	user := os.Getenv("DB_USER")
