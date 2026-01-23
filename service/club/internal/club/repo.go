@@ -8,7 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// Club rappresenta il club nel livello persistence.
+// Accesso dati del club su Postgres (persistence layer).
+// Qui restano le query SQL e la traduzione in tipi di dominio.
 type Club struct {
 	ID      uuid.UUID
 	Credits int64

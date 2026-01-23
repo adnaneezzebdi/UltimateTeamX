@@ -16,6 +16,7 @@ import (
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	// 1) Carica env dedicato al flow club.
 	// Carica le variabili da .env per il flow club.
 	envPath := os.Getenv("GO_DOTENV_PATH")
 	if envPath == "" {
@@ -27,6 +28,7 @@ func main() {
 		logger.Info(".env caricato", "path", envPath)
 	}
 
+	// 2) Costruisce la DSN e apre il DB.
 	dsn := os.Getenv("DB_DSN")
 	if dsn == "" {
 		dsn = buildDSN()
@@ -39,6 +41,7 @@ func main() {
 	}
 	defer db.Close()
 
+	// 3) Legge i file SQL da CLI ed esegue in transazione.
 	files := os.Args[1:]
 	if len(files) == 0 {
 		logger.Error("nessun file sql passato", "usage", "go run service/club/cmd/server/main.go <file.sql> [file2.sql]")

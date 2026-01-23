@@ -6,6 +6,7 @@ option go_package = "UltimateTeamX/proto/club/v1;clubv1";
 
 service ClubService {
   rpc GetClub(GetClubRequest) returns (GetClubResponse);
+  rpc GetMyClub(GetMyClubRequest) returns (GetMyClubResponse);
   rpc LockCard(LockCardRequest) returns (LockCardResponse);
   rpc ReleaseCardLock(ReleaseCardLockRequest) returns (ReleaseCardLockResponse);
   rpc CreateCreditHold(CreateCreditHoldRequest) returns (CreateCreditHoldResponse);
@@ -19,6 +20,21 @@ message GetClubRequest {
 
 message GetClubResponse {
   int64 credits = 1;
+}
+
+message GetMyClubRequest {
+}
+
+message GetMyClubResponse {
+  string club_id = 1;
+  int64 credits = 2;
+  repeated Card cards = 3;
+}
+
+message Card {
+  string id = 1;
+  string player_id = 2;
+  bool locked = 3;
 }
 
 message LockCardRequest {

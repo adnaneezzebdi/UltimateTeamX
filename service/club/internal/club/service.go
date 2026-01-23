@@ -8,7 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// Service implementa MyClubReader usando un repository.
+// Service applica la logica di dominio usando il repository.
+// Qui si mappano errori del DB in errori di dominio.
 type Service struct {
 	repo ClubRepository
 }
@@ -30,13 +31,11 @@ func (s *Service) GetMyClub(ctx context.Context, userID uuid.UUID) (*MyClub, err
 
 	cards, err := s.repo.ListUserCardsByClubID(ctx, club.ID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrClubNotFound
-		}
 		return nil, err
 	}
 
 	return &MyClub{
+		ClubID:  club.ID,
 		Credits: club.Credits,
 		Cards:   cards,
 	}, nil

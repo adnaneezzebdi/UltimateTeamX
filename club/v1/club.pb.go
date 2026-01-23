@@ -147,9 +147,8 @@ func (*GetMyClubRequest) Descriptor() ([]byte, []int) {
 
 type GetMyClubResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClubId        string                 `protobuf:"bytes,1,opt,name=club_id,json=clubId,proto3" json:"club_id,omitempty"`
-	Credits       int64                  `protobuf:"varint,2,opt,name=credits,proto3" json:"credits,omitempty"`
-	Cards         []*Card                `protobuf:"bytes,3,rep,name=cards,proto3" json:"cards,omitempty"`
+	Credits       int64                  `protobuf:"varint,1,opt,name=credits,proto3" json:"credits,omitempty"`
+	Cards         []*Card                `protobuf:"bytes,2,rep,name=cards,proto3" json:"cards,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -182,13 +181,6 @@ func (x *GetMyClubResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetMyClubResponse.ProtoReflect.Descriptor instead.
 func (*GetMyClubResponse) Descriptor() ([]byte, []int) {
 	return file_club_v1_club_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetMyClubResponse) GetClubId() string {
-	if x != nil {
-		return x.ClubId
-	}
-	return ""
 }
 
 func (x *GetMyClubResponse) GetCredits() int64 {
@@ -770,11 +762,10 @@ const file_club_v1_club_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"+\n" +
 	"\x0fGetClubResponse\x12\x18\n" +
 	"\acredits\x18\x01 \x01(\x03R\acredits\"\x12\n" +
-	"\x10GetMyClubRequest\"k\n" +
-	"\x11GetMyClubResponse\x12\x17\n" +
-	"\aclub_id\x18\x01 \x01(\tR\x06clubId\x12\x18\n" +
-	"\acredits\x18\x02 \x01(\x03R\acredits\x12#\n" +
-	"\x05cards\x18\x03 \x03(\v2\r.club.v1.CardR\x05cards\"K\n" +
+	"\x10GetMyClubRequest\"R\n" +
+	"\x11GetMyClubResponse\x12\x18\n" +
+	"\acredits\x18\x01 \x01(\x03R\acredits\x12#\n" +
+	"\x05cards\x18\x02 \x03(\v2\r.club.v1.CardR\x05cards\"K\n" +
 	"\x04Card\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tplayer_id\x18\x02 \x01(\tR\bplayerId\x12\x16\n" +

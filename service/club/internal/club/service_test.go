@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// fakeRepo simula il repository per testare la logica di dominio.
 type fakeRepo struct {
 	club     Club
 	cards    []UserCard
@@ -30,6 +31,7 @@ func (f *fakeRepo) ListUserCardsByClubID(_ context.Context, _ uuid.UUID) ([]User
 	return f.cards, nil
 }
 
+// Caso: club esistente con carte.
 func TestServiceGetMyClubOK(t *testing.T) {
 	clubID := uuid.New()
 	repo := &fakeRepo{
@@ -56,6 +58,31 @@ func TestServiceGetMyClubOK(t *testing.T) {
 	}
 }
 
+// Caso: club esistente senza carte.
+func TestServiceGetMyClubNoCards(t *testing.T) {
+	clubID := uuid.New()
+	repo := &fakeRepo{
+		club: Club{
+			ID:      clubID,
+			Credits: 500,
+		},
+		cards: nil,
+	}
+	service := NewService(repo)
+
+	result, err := service.GetMyClub(context.Background(), uuid.New())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Credits != 500 {
+		t.Fatalf("expected credits 500, got %d", result.Credits)
+	}
+	if len(result.Cards) != 0 {
+		t.Fatalf("expected 0 cards, got %d", len(result.Cards))
+	}
+}
+
+// Caso: club inesistente.
 func TestServiceGetMyClubNotFound(t *testing.T) {
 	repo := &fakeRepo{clubErr: sql.ErrNoRows}
 	service := NewService(repo)
@@ -66,6 +93,7 @@ func TestServiceGetMyClubNotFound(t *testing.T) {
 	}
 }
 
+// Caso: errore generico dal repository.
 func TestServiceGetMyClubDBError(t *testing.T) {
 	repo := &fakeRepo{clubErr: errors.New("db down")}
 	service := NewService(repo)

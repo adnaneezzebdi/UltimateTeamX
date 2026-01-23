@@ -11,6 +11,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Test d'integrazione: inserisce dati reali e li rilegge dal DB.
 func TestRepoGetClubAndCards(t *testing.T) {
 	dsn := os.Getenv("CLUB_TEST_DSN")
 	if dsn == "" {
@@ -60,6 +61,7 @@ func TestRepoGetClubAndCards(t *testing.T) {
 	}
 }
 
+// Test d'integrazione: club inesistente.
 func TestRepoGetClubNotFound(t *testing.T) {
 	dsn := os.Getenv("CLUB_TEST_DSN")
 	if dsn == "" {
