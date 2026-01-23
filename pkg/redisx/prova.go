@@ -1,3 +1,3 @@
 package redisx
 
-//# redis client, locks, streams
+// Placeholder: client Redis, lock e streams.

@@ -1,3 +1,3 @@
 package internal
 
-// qui andranno messi i file internal
+// Placeholder: qui andranno messi i file internal del club-svc.
