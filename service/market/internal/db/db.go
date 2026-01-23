@@ -17,6 +17,7 @@ func Open(dsn string) (*sql.DB, error) {
 		return nil, errors.New("DB_DSN is required")
 	}
 
+	// Apertura connessione senza side effects, il ping e' sotto.
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err

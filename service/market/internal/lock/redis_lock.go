@@ -23,6 +23,7 @@ type RedisLock struct {
 }
 
 func NewRedisLock(client *redis.Client, ttl time.Duration, retries int, backoff time.Duration) *RedisLock {
+	// TTL breve evita lock orfani in caso di crash.
 	return &RedisLock{
 		client:  client,
 		ttl:     ttl,

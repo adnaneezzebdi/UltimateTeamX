@@ -11,6 +11,7 @@ import (
 // ErrNotFound indica che la risorsa non esiste.
 var ErrNotFound = sql.ErrNoRows
 
+// Repo gestisce le query SQL per il market.
 type Repo struct {
 	db *sql.DB
 }

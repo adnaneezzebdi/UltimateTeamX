@@ -1,3 +1,3 @@
 package config
 
-//# env loader
+// Placeholder: loader di configurazione via env.

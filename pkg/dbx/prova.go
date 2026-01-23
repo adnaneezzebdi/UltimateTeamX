@@ -1,3 +1,3 @@
 package dbx
 
-// # pg connection, tx helpers
+// Placeholder: connessione Postgres e helper per transazioni.

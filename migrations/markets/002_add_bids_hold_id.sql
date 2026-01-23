@@ -1,4 +1,5 @@
 -- Aggiunge hold_id ai bid per poter rilasciare l'hold precedente.
+-- Necessario per gestire il rilascio dell'hold del bidder precedente.
 
 ALTER TABLE bids
 ADD COLUMN hold_id TEXT;

@@ -1,3 +1,4 @@
+# Directory dei file .proto
 PROTO_DIR := proto
 DOCKER_COMPOSE := docker/docker-compose.yaml
 

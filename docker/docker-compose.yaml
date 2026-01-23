@@ -1,4 +1,5 @@
 services:
+  # Database principale di sviluppo
   postgres:
     image: postgres:16
     environment:

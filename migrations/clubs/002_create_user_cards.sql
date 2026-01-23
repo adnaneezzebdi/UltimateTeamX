@@ -14,8 +14,3 @@ CREATE TABLE user_cards (
     locked BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-
-
-
-

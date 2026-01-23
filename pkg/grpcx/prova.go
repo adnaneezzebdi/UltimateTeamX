@@ -1,3 +1,3 @@
 package grpcx
 
-//# interceptors, auth, logging
+// Placeholder: interceptors gRPC (auth, logging, tracing).
