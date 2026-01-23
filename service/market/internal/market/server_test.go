@@ -115,6 +115,13 @@ func (c *fakeClub) GetMyClub(ctx context.Context, _ *clubv1.GetMyClubRequest, _ 
 			c.getMyClubUserID = values[0]
 		}
 	}
+	if c.getMyClubUserID == "" {
+		if md, ok := metadata.FromOutgoingContext(ctx); ok {
+			if values := md.Get(grpcx.UserIDMetadataKey); len(values) > 0 {
+				c.getMyClubUserID = values[0]
+			}
+		}
+	}
 	if c.getMyClubErr != nil {
 		return nil, c.getMyClubErr
 	}
